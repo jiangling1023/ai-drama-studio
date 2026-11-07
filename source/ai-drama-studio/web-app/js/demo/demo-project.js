@@ -1,13 +1,15 @@
 // 示例工程种子：零网络 / 零随机 / 可重复；数据一律取自 demo-data.js，页面不得另造
 import {
   DEMO_MARK, DEMO_SCRIPT, DEMO_EPISODES, DEMO_SCENES, DEMO_ASSETS, DEMO_SHOTS,
-  DEMO_PROMPT, DEMO_STORYBOARD, DEMO_CLIPS, DEMO_DIRECTOR_PLAN, DEMO_DIRECTOR_TASKS
+  DEMO_PROMPT, DEMO_STORYBOARD, DEMO_CLIPS, DEMO_DIRECTOR_PLAN, DEMO_DIRECTOR_TASKS,
+  DEMO_DIRECTOR_REVIEW
 } from './demo-data.js';
 import { demoKeyFrame } from './demo-image.js';
 import { applyCanvasCommand, buildCanvasNodes } from '../core/canvas-command.js';
 import { diagnose } from '../core/diagnosis.js';
 import { defaultExportConfig } from '../core/video-assembly.js';
 import { now } from '../core/uid.js';
+import { generateReview, generateShotTimeline, buildPromptArchitect, getConsistencyRules } from '../core/director.js';
 import { TASK_STATUS, SOURCE_MARK, SAVE_STATUS, LOCK_STATE } from '../constants.js';
 
 const clone = v => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
@@ -15,6 +17,7 @@ const clone = v => (v === undefined ? null : JSON.parse(JSON.stringify(v)));
 const 示例集 = 'demo-ep-01';
 
 // 每条分镜两帧：帧ID 由分镜ID派生，保证重复载入后 ID 不变
+// 中间事件与轮廓/尺度标注一并给全，R-06「首尾帧连续性」才有可判材料，不会整片报缺帧
 function 帧列表(shots) {
   const 类型 = ['首帧', '尾帧'];
   return shots.flatMap(s => 类型.map((帧, i) => ({
@@ -22,6 +25,10 @@ function 帧列表(shots) {
     分镜ID: s.分镜ID,
     帧类型: 帧,
     图片引用: demoKeyFrame(s.分镜ID, 帧),
+    中间事件: `${s.分镜ID} ${帧 === '首帧' ? '主体推门入画' : '主体转身出画，雨声渐弱'}`,
+    // R-06 读三态字符串（一致/不一致/未检查），布尔会被判成「未检查」
+    轮廓位置一致: '一致',
+    尺度连续: '一致',
     生成状态: '成功',
     来源标记: DEMO_MARK,
     数据来源标记: DEMO_MARK,
@@ -47,7 +54,11 @@ function 生成任务() {
       帧类型: t.类型 === '关键帧' ? '首帧' : undefined
     },
     最终提示词快照: {
-      正向: { 全局正向词: DEMO_PROMPT.全局正向词, 单条正向词: '' },
+      // 角色锚点随快照冻结：F-004 锁定后注入，缺它会让「锚点携带完整性」整片判不通过
+      正向: {
+        全局正向词: DEMO_PROMPT.全局正向词, 单条正向词: '',
+        角色锚点: [{ 锚点标识: 'ANC-LINXIA-01', 参考标识: 'demo-ref-01' }]
+      },
       负面: { 全局锁定负面词: DEMO_PROMPT.全局负面词.slice(), 单条负面词: [] }
     },
     来源模型标识: t.来源, 来源类型: t.来源,
@@ -62,6 +73,44 @@ function 生成任务() {
   }));
 }
 
+// 引擎返回空/抛错时的兜底报告：只保证页面非空，条数口径以 core 为准
+function 兜底复核(p) {
+  p.directorReviews = [{
+    ...clone(DEMO_DIRECTOR_REVIEW),
+    项目ID: p.项目ID || '',
+    数据来源标记: DEMO_MARK,
+    生成时间: now()
+  }];
+}
+
+// 顺序：时间轴 → 成品提示词 → 复核报告；成品提示词以时间轴条目 ID 为唯一输入，复核读诊断/任务/成品
+function seedDirector(p) {
+  // seed 前清空这 5 个集合：core 函数是追加写，不清空会让重复 seed 条数翻倍
+  p.directorReviews = [];
+  p.reviewFindings = [];
+  p.shotDeconstructions = [];
+  p.promptArchitectResults = [];
+  p.reverseAnalyses = [];
+
+  let 时间轴 = [];
+  try {
+    if (!getConsistencyRules(p).length) p.consistencyRules = [];
+    时间轴 = generateShotTimeline(p, { 来源类型: '项目内分镜' }) || [];
+    const 镜头IDs = 时间轴.map(s => s.条目ID).filter(Boolean);
+    if (镜头IDs.length) buildPromptArchitect(p, 镜头IDs, { 类型: '演示', 名称: '演示模型' });
+  } catch (e) {
+    时间轴 = 时间轴 || [];
+  }
+
+  let 报告 = null;
+  try {
+    报告 = generateReview(p, '全片');
+  } catch (e) {
+    报告 = null;
+  }
+  if (!报告) 兜底复核(p);
+}
+
 export function seedDemoProject(project) {
   const p = project || {};
 
@@ -74,8 +123,18 @@ export function seedDemoProject(project) {
   // 深拷贝：页面的锁定/编辑会就地改这些集合，绝不能污染模块常量
   p.episodes = clone(DEMO_EPISODES).map(e => ({ ...e, 数据来源标记: DEMO_MARK }));
   p.scenes = clone(DEMO_SCENES).map(s => ({ ...s, 数据来源标记: DEMO_MARK }));
-  p.assets = clone(DEMO_ASSETS).map(a => ({ ...a, 数据来源标记: DEMO_MARK }));
-  p.shots = clone(DEMO_SHOTS).map(s => ({ ...s, 数据来源标记: DEMO_MARK }));
+  // 来源片段取场次正文原文（同源数据），交给 CSS 两行 clamp 出省略号；demo 数据里的 24 字硬切会让文字像被裁断
+  p.assets = clone(DEMO_ASSETS).map((a, i) => ({
+    ...a,
+    来源文本片段: (p.scenes[i] || {}).正文 || a.来源文本片段,
+    数据来源标记: DEMO_MARK
+  }));
+  p.shots = clone(DEMO_SHOTS).map(s => ({
+    ...s,
+    // 分镜引用自己那两帧：ID 规则与 帧列表 一致，缺失会让复核报「悬空引用」
+    关联关键帧ID列表: [`${s.分镜ID}-kf-a`, `${s.分镜ID}-kf-b`],
+    数据来源标记: DEMO_MARK
+  }));
   p.keyFrames = 帧列表(p.shots);
   p.storyboardItems = clone(DEMO_STORYBOARD).map(s => ({ ...s, 数据来源标记: DEMO_MARK }));
 
@@ -107,13 +166,18 @@ export function seedDemoProject(project) {
 
   p.directorPlans = [clone(DEMO_DIRECTOR_PLAN)];
   p.directorTasks = clone(DEMO_DIRECTOR_TASKS);
-  p.directorReviews = [];
-  p.reviewFindings = [];
 
-  p.scriptDiagnoses = p.scenes.map(s => diagnose(p, '场次', s.场次ID, s.正文))
-    .map(d => ({ ...d, 来源标记: DEMO_MARK }));
+  // 只留一条「剧本」级诊断：复核口径取 scriptDiagnoses 末条，按场次存会让覆盖率/密度只量到最后一场
+  p.scriptDiagnoses = [{ ...diagnose(p, '剧本', 'script', p.剧本原文), 来源标记: DEMO_MARK }];
 
   p.genTasks = 生成任务();
+
+  // 示例工程已跑完整条链路（剧本→资产→分镜→关键帧→成品→整合）：三级前置与三方面审阅据实置为已确认
+  p.检查前置确认 = { 文字: true, 图: true, 视频: true };
+  p.审阅勾选 = { 故事理解: true, 画面镜头: true, 声音效果: true };
+
+  // 基础数据（分镜 / 成品 / 诊断 / 任务）全部就位后再跑引擎，产物才与页面手动点击的结果一致
+  seedDirector(p);
 
   p.保存状态 = SAVE_STATUS.已保存;
   p.更新时间 = now();
