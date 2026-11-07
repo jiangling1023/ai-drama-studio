@@ -60,6 +60,14 @@ export function render(container, ctx, extra = {}) {
   const 场次序 = new Map((p.scenes || []).map((s, i) => [s.场次ID, Number(s.场次序号) || i + 1]));
   const 分镜 = (p.shots || []).slice().sort((a, b) => (场次序.get(a.场次ID) ?? 99) - (场次序.get(b.场次ID) ?? 99)
     || (Number(a.镜号) || 0) - (Number(b.镜号) || 0));
+  // 跨场次镜号会重号，显示为 场次-镜 便于与分镜脚本对齐；反查不到场次时退回单镜号
+  const 分镜表 = new Map((p.shots || []).map(s => [s.分镜ID, s]));
+  const 镜号文本 = 成品项 => {
+    const shot = 分镜表.get(成品项.分镜ID);
+    const 序号 = shot ? 场次序.get(shot.场次ID) : undefined;
+    const 镜号 = Number(shot ? shot.镜号 : 成品项.镜号) || 0;
+    return 序号 ? `${序号}-${镜号}` : `镜 ${镜号}`;
+  };
   const 成品 = p.storyboardItems || [];
   const 帧表 = p.keyFrames || [];
   const 约束 = effectiveConstraints(p);
@@ -127,7 +135,7 @@ export function render(container, ctx, extra = {}) {
   const 表格 = 成品.length
     ? renderDataTable(
       [
-        { key: '镜号', label: '镜号' },
+        { key: '镜号', label: '镜号（场次-镜）' },
         { key: '画面描述', label: '画面描述' },
         { key: '关键帧', label: '关键帧' },
         { key: '对白', label: '对白' },
@@ -137,7 +145,7 @@ export function render(container, ctx, extra = {}) {
         { key: '操作', label: '操作' }
       ],
       成品.map((s, i) => ({
-        镜号: `镜 ${s.镜号}`,
+        镜号: 镜号文本(s),
         画面描述: 截断(s.画面描述, 22),
         关键帧: `__KF_${i}__`,
         对白: 截断(s.对白, 16) || '—',

@@ -34,6 +34,15 @@ export function render(container, ctx, extra = {}) {
   // 旧工程里存的旧文案「按镜号升序」按同义处理，避免下拉回落到第一项而看不出原值
   const 顺序值 = 配置.片段顺序 === '按镜号升序' ? '按场次→镜号升序' : 配置.片段顺序;
   const 成品 = p.storyboardItems || [];
+  const 分镜表 = new Map((p.shots || []).map(s => [s.分镜ID, s]));
+  const 场次序 = new Map((p.scenes || []).map((s, i) => [s.场次ID, Number(s.场次序号) || i + 1]));
+  // 跨场次镜号会重号，显示为 场次-镜 便于与成品表和分镜脚本对齐
+  const 镜号文本 = (分镜ID, 自带镜号) => {
+    const s = 分镜表.get(分镜ID);
+    const 序号 = s ? 场次序.get(s.场次ID) : undefined;
+    const 镜号 = Number(s ? s.镜号 : 自带镜号) || 0;
+    return 序号 ? `${序号}-${镜号}` : (镜号 ? `镜 ${镜号}` : '—');
+  };
 
   if (预览序 >= 片段.length) 预览序 = 0;
   const 当前段 = getPreviewData(p, 预览序);
@@ -59,9 +68,8 @@ export function render(container, ctx, extra = {}) {
   function 按分镜顺序重排() {
     if (!p.videoAssembly) return;
     // 镜号在场次内唯一、跨场次会重号，排序键必须是 场次序号 → 镜号，与 F-010 成品表一致
-    const 场次序 = new Map((p.scenes || []).map((s, i) => [s.场次ID, Number(s.场次序号) || i + 1]));
     const 键 = id => {
-      const s = (p.shots || []).find(x => x.分镜ID === id);
+      const s = 分镜表.get(id);
       // 反查不到分镜时两项都退化为 0，等价于保持原有相对顺序（稳定排序）
       return {
         场次: s ? (场次序.get(s.场次ID) ?? 0) : 0,
@@ -131,6 +139,7 @@ export function render(container, ctx, extra = {}) {
       [
         { key: '顺序号', label: '顺序号' },
         { key: '分镜ID', label: '分镜ID' },
+        { key: '镜号', label: '镜号（场次-镜）' },
         { key: '关键帧', label: '关键帧' },
         { key: '时长', label: '时长' },
         { key: '转场', label: '转场类型' },
@@ -140,6 +149,7 @@ export function render(container, ctx, extra = {}) {
       片段.map((c, i) => ({
         顺序号: `#${c.顺序号}`,
         分镜ID: c.分镜ID,
+        镜号: 镜号文本(c.分镜ID, c.镜号),
         关键帧: `__KF_${i}__`,
         时长: `${Number(c.时长) || 0} 秒`,
         转场: `__TR_${i}__`,
