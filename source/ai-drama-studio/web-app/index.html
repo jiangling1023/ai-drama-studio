@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>短剧工作台 · 一站式 AI 短剧创作</title>
+<link rel="stylesheet" href="css/style.css">
+<style>
+/* 壳层定位与尺寸：颜色/圆角/描边/阴影全部复用 style.css 的 token，不新增色值、不覆盖既有 class */
+#ws-topbar { position: sticky; top: 0; z-index: 2; }
+#ws-stepnav { position: fixed; left: 0; top: 56px; bottom: 40px; width: 224px; overflow-y: auto; z-index: 1; }
+#content { margin-left: 224px; padding-bottom: 40px; }
+#ws-status { position: fixed; left: 0; right: 0; bottom: 0; height: 40px; z-index: 2; }
+@media (max-width: 960px) {
+  #ws-stepnav { position: static; width: auto; }
+  #content { margin-left: 0; }
+}
+
+.tb { display: flex; align-items: center; gap: 12px; height: 56px; padding: 0 16px; overflow-x: auto; border-radius: 0; border-top: 0; border-left: 0; border-right: 0; }
+.tb-brand { display: flex; align-items: center; gap: 8px; flex: none; }
+.tb-mark { width: 28px; height: 28px; border-radius: 8px; background: linear-gradient(135deg, var(--glow-g1-from), var(--glow-g1-to)); flex: none; }
+.tb-title { font-size: var(--fs-l2); font-weight: 600; line-height: 18px; }
+.tb-sub { font-size: var(--fs-badge); color: var(--text-3); line-height: 14px; }
+.tb-fields { display: flex; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.tb-fields .field-input { width: 160px; flex: none; }
+.tb-fields .field-input#top-idea { width: 190px; }
+.tb-actions { display: flex; gap: 8px; flex: none; }
+.tb-chain { position: absolute; left: 16px; right: 16px; top: 52px; z-index: 2; max-height: 320px; overflow: auto; }
+.tb-chain table { width: 100%; border-collapse: collapse; font-size: var(--fs-label); }
+.tb-chain th, .tb-chain td { text-align: left; padding: 4px 8px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+.tb-chain th { color: var(--text-2); font-weight: 500; }
+
+.sn { display: flex; flex-direction: column; min-height: 100%; padding: 8px 0; border-radius: 0; border-top: 0; border-bottom: 0; border-left: 0; }
+.sn-item { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 40px; padding: 0 12px; border: 0; background: transparent; color: var(--text-2); font-size: var(--fs-label); font-family: inherit; text-align: left; cursor: pointer; transition: color var(--dur-hover) var(--ease-out); }
+.sn-item:hover { color: var(--text-1); background: var(--glass-highlight); }
+/* 当前步：左侧 2px 渐变条 + 玻璃高亮，同一条背景渐变实现，不新增色值 */
+.sn-item.is-active { color: var(--text-1); background: linear-gradient(90deg, var(--glow-g1-from) 0 2px, rgba(22, 28, 43, .85) 2px 100%); }
+.sn-num { flex: none; min-width: 16px; color: var(--text-3); font-variant-numeric: tabular-nums; }
+.sn-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sn-dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--border); }
+.sn-dot.ok { background: var(--ok); }
+.sn-dot.skip { background: var(--text-3); }
+.sn-dot.doing { background: var(--degrade); animation: sn-pulse 1.4s var(--ease-inout) infinite; }
+@keyframes sn-pulse { 0%, 100% { opacity: 1; } 50% { opacity: .35; } }
+.sn-cross { margin-top: auto; padding-top: 8px; border-top: 1px solid var(--border); }
+.sn-cross .sn-item { color: var(--text-3); }
+
+.sa { display: flex; align-items: center; gap: 12px; height: 40px; padding: 0 12px; border-radius: 0; border-top: 0; border-left: 0; border-right: 0; border-bottom: 0; font-size: var(--fs-label); }
+.sa-task { display: flex; align-items: center; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.sa-task span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sa-bar { flex: none; width: 96px; height: 4px; border-radius: 2px; background: var(--border); overflow: hidden; }
+.sa-bar > i { display: block; height: 100%; width: 40%; background: linear-gradient(90deg, var(--glow-g2-from), var(--glow-g2-to)); animation: sa-move 1.2s var(--ease-inout) infinite; }
+@keyframes sa-move { from { margin-left: -40%; } to { margin-left: 100%; } }
+.sa-counts { display: flex; align-items: center; gap: 8px; flex: none; color: var(--text-2); }
+.sa-counts .sn-dot { width: 6px; height: 6px; }
+.sa-note { color: var(--text-3); }
+/* 底部条内 C-15 紧凑态：只留来源/用途/模型一行，调用链面板以浮层向上展开，点击有可见结果 */
+.sa-chain { position: relative; flex: 0 1 auto; min-width: 120px; max-width: 380px; }
+.sa-chain .source-badge { padding: 0; border: 0; background: transparent; box-shadow: none; animation: none; }
+.sa-chain .source-line { flex-wrap: nowrap; gap: 4px; }
+.sa-chain .source-meta { display: none; }
+.sa-chain .chain-panel { position: absolute; left: 0; bottom: 26px; z-index: 2; width: 360px; padding: 8px; background: var(--float-bg); border: 1px solid var(--glass-stroke-float); border-radius: var(--r-panel); box-shadow: var(--shadow-l3); }
+.sa-panel { position: fixed; left: 0; right: 0; bottom: 40px; z-index: 2; max-height: 60vh; overflow: auto; display: grid; gap: 8px; border-radius: 0; border-left: 0; border-right: 0; border-bottom: 0; }
+.sa-panel[hidden] { display: none; }
+
+.md-mask { position: fixed; inset: 0; z-index: 3; display: flex; justify-content: flex-end; background: rgba(10, 12, 18, .6); }
+.md { width: 480px; max-width: 92vw; height: 100%; overflow: auto; display: grid; gap: 12px; align-content: start; border-radius: 0; padding: 16px; background: var(--float-bg); }
+.md-head { display: flex; align-items: center; gap: 8px; }
+.md-head h2 { flex: 1 1 auto; margin: 0; font-size: var(--fs-l2); }
+.md-group h3 { margin: 0 0 8px; font-size: var(--fs-label); color: var(--text-2); }
+.md-hint { font-size: var(--fs-badge); color: var(--text-3); line-height: var(--lh-badge); }
+</style>
+</head>
+<body>
+<div id="boot-error" class="boot-error" hidden></div>
+<div id="app"><div id="content"></div></div>
+<div id="modalRoot"></div>
+<div id="toast"></div>
+<noscript>
+  <div class="boot-error">本工作台需要启用 JavaScript 才能运行；工程数据未改动，请启用后刷新页面重试。</div>
+</noscript>
+<script type="module" src="js/app.js"></script>
+<script>
+// ④兜底（非 module，先于模块错误即可生效）：任何加载/异步异常都转成可读中文常驻块，绝不静默白屏
+(function () {
+  var shown = false;
+  function show(msg) {
+    if (shown) return;
+    shown = true;
+    var box = document.getElementById('boot-error');
+    if (!box) return;
+    box.textContent = '应用加载失败：' + (msg || '未知错误') + '；请刷新页面重试，工程数据未改动';
+    box.hidden = false;
+  }
+  window.addEventListener('error', function (e) {
+    var m = (e && e.message) || (e && e.target && (e.target.src || e.target.href)) || '脚本加载异常';
+    show(m);
+  });
+  window.addEventListener('unhandledrejection', function (e) {
+    var r = e && e.reason;
+    show((r && (r.message || r)) || '异步任务异常');
+  });
+  window.__APP_READY__ = function () { window.__APP_READY_FLAG__ = true; };
+})();
+</script>
+</body>
+</html>

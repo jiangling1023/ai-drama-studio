@@ -1,0 +1,19 @@
+# 依赖与构建产物不入库（本项目零依赖零构建，以下为通用防误提交项）
+node_modules/
+build-local/
+
+# 系统与编辑器
+.DS_Store
+Thumbs.db
+.idea/
+*.iml
+.vscode/
+*.swp
+*.log
+
+# 本地环境与个人配置
+.env*
+*.local
+
+# 交付压缩包
+deliverables/*.zip
