@@ -13,21 +13,24 @@ export function matchCommand(input) {
 
 function 数据源(project, cmd, scope) {
   const p = project || {};
-  const 全集 = scope !== '当前集';
-  const 当前集ID = p.当前集ID || (p.episodes || [])[0]?.集ID;
+  const episodes = Array.isArray(p.episodes) ? p.episodes : [];
+  const 当前集ID = p.当前集ID || episodes[0]?.集ID || '';
+  // 无集时退化为全部场次：只做「按场次拆分」的工程没有 episodes，按当前集筛会被筛成 0 节点且无提示
+  const 退化为全集 = String(scope) === '当前集' && (!episodes.length || !当前集ID);
+  const 全集 = String(scope) !== '当前集' || 退化为全集;
   const 当前场次IDs = (p.scenes || []).filter(s => s.集ID === 当前集ID).map(s => s.场次ID);
   if (cmd === CANVAS_CMD.按场次生成) {
     const list = (p.scenes || []).filter(s => 全集 || s.集ID === 当前集ID);
-    return { 类型: NODE_TYPE.场次, 条目: list.slice().sort((a, b) => (a.场次序号 || 0) - (b.场次序号 || 0)) };
+    return { 类型: NODE_TYPE.场次, 条目: list.slice().sort((a, b) => (a.场次序号 || 0) - (b.场次序号 || 0)), 退化: 退化为全集 };
   }
   if (cmd === CANVAS_CMD.按分镜生成) {
     const list = (p.shots || []).filter(s => 全集 || !当前场次IDs.length || 当前场次IDs.includes(s.场次ID));
-    return { 类型: NODE_TYPE.分镜, 条目: list.slice().sort((a, b) => (a.镜号 || 0) - (b.镜号 || 0)) };
+    return { 类型: NODE_TYPE.分镜, 条目: list.slice().sort((a, b) => (a.镜号 || 0) - (b.镜号 || 0)), 退化: 退化为全集 };
   }
   const 类别序 = { 人物: 0, 场景: 1, 道具: 2 };
   const list = (p.assets || []).slice()
     .sort((a, b) => (类别序[a.类型] ?? 9) - (类别序[b.类型] ?? 9) || (a.创建序 || 0) - (b.创建序 || 0));
-  return { 类型: NODE_TYPE.资产, 条目: list };
+  return { 类型: NODE_TYPE.资产, 条目: list, 退化: 退化为全集 };
 }
 
 // 按指令类型取对应主键：分镜节点只认「分镜ID」，避免回落到「场次ID」导致节点显示 demo-sc-01
@@ -54,8 +57,9 @@ const 组间空隙 = 20;
 export function buildCanvasNodes(project, cmd, scope = '当前集') {
   const c = matchCommand(cmd);
   if (!c) return { nodes: [], reason: W_R07 };
-  const { 类型, 条目 } = 数据源(project, c, scope);
-  if (!条目.length) return { nodes: [], reason: V1_TEXT.DATA_SOURCE_EMPTY };
+  const { 类型, 条目, 退化 } = 数据源(project, c, scope);
+  const 提示 = 退化 ? '未找到当前集，已按全部场次生成' : '';
+  if (!条目.length) return { nodes: [], reason: V1_TEXT.DATA_SOURCE_EMPTY, 提示 };
   let 组偏移 = 0;
   let 上一组 = null;
   const nodes = 条目.map((r, i) => {
@@ -75,7 +79,7 @@ export function buildCanvasNodes(project, cmd, scope = '当前集') {
       来源指令: c
     };
   });
-  return { nodes };
+  return { nodes, 提示 };
 }
 
 export function applyCanvasCommand(project, cmd, scope = '当前集', confirmed = false) {
@@ -83,18 +87,18 @@ export function applyCanvasCommand(project, cmd, scope = '当前集', confirmed 
   const c = matchCommand(cmd);
   // CNV-06：非法指令节点数不变
   if (!c) return { changed: false, needConfirm: false, reason: W_R07 };
-  const { nodes, reason } = buildCanvasNodes(p, c, scope);
+  const { nodes, reason, 提示 } = buildCanvasNodes(p, c, scope);
   // CNV-05：空数据源节点数 0，不生成占位空节点
   if (!nodes.length) {
     p.canvasNodes = [];
-    return { changed: true, needConfirm: false, reason: reason || V1_TEXT.DATA_SOURCE_EMPTY };
+    return { changed: true, needConfirm: false, reason: reason || V1_TEXT.DATA_SOURCE_EMPTY, 提示 };
   }
   // CNV-04：画布非空时重复提交须一次显式确认，确认后全量重建不叠加
   if ((p.canvasNodes || []).length && !confirmed) {
-    return { changed: false, needConfirm: true, reason: '画布已有节点，全量重建将覆盖现有节点，请确认' };
+    return { changed: false, needConfirm: true, reason: '画布已有节点，全量重建将覆盖现有节点，请确认', 提示 };
   }
   p.canvasNodes = nodes;
-  return { changed: true, needConfirm: false };
+  return { changed: true, needConfirm: false, 提示 };
 }
 
 export function checkCanvasIntegrity(project) {

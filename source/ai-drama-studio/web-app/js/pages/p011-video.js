@@ -8,7 +8,7 @@ let 预览序 = 0;
 
 const 帧率选项 = [24, 25, 30];
 const 分辨率选项 = ['1920x1080', '1080x1920', '2560x1440'];
-const 顺序选项 = ['按镜号升序', '自定义'];
+const 顺序选项 = ['按场次→镜号升序', '自定义'];
 
 const 色调 = {
   'chip--ok': 'tone-ok', 'chip--warn': 'tone-degrade', 'chip--fail': 'tone-fail',
@@ -31,6 +31,8 @@ export function render(container, ctx, extra = {}) {
 
   const 片段 = (p.videoAssembly && p.videoAssembly.片段清单) || [];
   const 配置 = (p.videoAssembly && p.videoAssembly.导出配置) || defaultExportConfig();
+  // 旧工程里存的旧文案「按镜号升序」按同义处理，避免下拉回落到第一项而看不出原值
+  const 顺序值 = 配置.片段顺序 === '按镜号升序' ? '按场次→镜号升序' : 配置.片段顺序;
   const 成品 = p.storyboardItems || [];
 
   if (预览序 >= 片段.length) 预览序 = 0;
@@ -48,25 +50,34 @@ export function render(container, ctx, extra = {}) {
 
   function 生成清单() {
     const assembly = buildAssembly(p);
-    // 生成即按镜号升序写入，默认转场类型同步到配置
+    // 生成即按成品表顺序写入，默认转场类型同步到配置
     ctx.commit(() => {});
     re();
     ctx.showToast(`已生成 ${assembly.片段清单.length} 个片段（结构化编排，不产出视频文件）`, { level: 'ok' });
   }
 
-  function 按镜号重排() {
+  function 按分镜顺序重排() {
     if (!p.videoAssembly) return;
-    const 镜号 = id => {
+    // 镜号在场次内唯一、跨场次会重号，排序键必须是 场次序号 → 镜号，与 F-010 成品表一致
+    const 场次序 = new Map((p.scenes || []).map((s, i) => [s.场次ID, Number(s.场次序号) || i + 1]));
+    const 键 = id => {
       const s = (p.shots || []).find(x => x.分镜ID === id);
-      return s ? Number(s.镜号) || 0 : 0;
+      // 反查不到分镜时两项都退化为 0，等价于保持原有相对顺序（稳定排序）
+      return {
+        场次: s ? (场次序.get(s.场次ID) ?? 0) : 0,
+        镜号: s ? Number(s.镜号) || 0 : 0
+      };
     };
-    p.videoAssembly.片段清单.sort((a, b) => 镜号(a.分镜ID) - 镜号(b.分镜ID));
+    p.videoAssembly.片段清单.sort((a, b) => {
+      const ka = 键(a.分镜ID), kb = 键(b.分镜ID);
+      return ka.场次 - kb.场次 || ka.镜号 - kb.镜号;
+    });
     重编号();
-    if (p.videoAssembly.导出配置) p.videoAssembly.导出配置.片段顺序 = '按镜号升序';
+    if (p.videoAssembly.导出配置) p.videoAssembly.导出配置.片段顺序 = '按场次→镜号升序';
     预览序 = 0;
     ctx.commit(() => {});
     re();
-    ctx.showToast(`已按镜号升序重排 ${p.videoAssembly.片段清单.length} 个片段`, { level: 'ok' });
+    ctx.showToast(`已按 场次序号 → 镜号 重排 ${p.videoAssembly.片段清单.length} 个片段`, { level: 'ok' });
   }
 
   function 移动(i, 方向) {
@@ -98,7 +109,7 @@ export function render(container, ctx, extra = {}) {
       分辨率: 取('[data-role="resolution"]') || '1920x1080',
       // 命名规则只校验非空，占位符由使用方替换，页面不改写用户填写的原文
       输出命名规则: 原名,
-      片段顺序: 取('[data-role="order"]') || '按镜号升序',
+      片段顺序: 取('[data-role="order"]') || '按场次→镜号升序',
       默认转场类型: 取('[data-role="transition"]') || 配置.默认转场类型
     };
     ctx.commit(() => {});
@@ -157,7 +168,7 @@ export function render(container, ctx, extra = {}) {
     : renderEmptyState({
       title: '还没有片段清单',
       message: 成品.length
-        ? `分镜成品已有 ${成品.length} 条，点「生成片段清单」按镜号升序编排`
+        ? `分镜成品已有 ${成品.length} 条，点「生成片段清单」按成品表顺序编排`
         : '请先在 F-010 生成分镜成品，再回到本页编排片段',
       missing: 成品.length ? ['videoAssembly 为空：尚未生成片段清单'] : ['storyboardItems 为空：F-010 分镜成品未生成'],
       guideBtnId: 'BTN-P011-90',
@@ -213,7 +224,7 @@ export function render(container, ctx, extra = {}) {
     <div class="field">
       <label class="field-label" for="p011-order">片段顺序</label>
       <div class="field-control">
-        <select id="p011-order" class="field-input" data-role="order">${顺序选项.map(o => `<option value="${escapeHtml(o)}"${配置.片段顺序 === o ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select>
+        <select id="p011-order" class="field-input" data-role="order">${顺序选项.map(o => `<option value="${escapeHtml(o)}"${顺序值 === o ? ' selected' : ''}>${escapeHtml(o)}</option>`).join('')}</select>
       </div>
       <p class="field-hint">自定义顺序通过清单里的「上移 / 下移」调整</p>
     </div>
@@ -248,8 +259,8 @@ export function render(container, ctx, extra = {}) {
       <div class="section-body">
         <div class="toolbar">
           <button type="button" class="btn btn-primary" data-btn-id="BTN-P011-02">生成片段清单</button>
-          <button type="button" class="btn btn-ghost" data-btn-id="BTN-P011-01">按镜号升序重排</button>
-          <span class="muted">生成会按镜号升序全量重建清单，现有自定义顺序会被覆盖</span>
+          <button type="button" class="btn btn-ghost" data-btn-id="BTN-P011-01">按分镜顺序重排</button>
+          <span class="muted">生成会按成品表顺序全量重建清单，现有自定义顺序会被覆盖</span>
         </div>
         <div class="stat-row">
           <div class="stat">
@@ -318,13 +329,13 @@ export function render(container, ctx, extra = {}) {
     禁用原因: '暂无片段清单，请先生成片段清单',
     handler: () => {
       openConfirmModal({
-        title: '按镜号升序重排',
-        message: `将按分镜镜号升序重排 ${片段.length} 个片段并重新编号，现有自定义顺序会丢失。`,
+        title: '按分镜顺序重排',
+        message: `将按 场次序号 → 镜号 的顺序重排 ${片段.length} 个片段并重新编号，现有自定义顺序会丢失。`,
         变更条目ID: 片段.map(c => `#${c.顺序号} ${c.分镜ID}`),
         confirmLabel: '确认重排',
         confirmBtnId: 'BTN-P011-01a',
         cancelBtnId: 'BTN-P011-01b',
-        onConfirm: () => { 关弹层(); 按镜号重排(); },
+        onConfirm: () => { 关弹层(); 按分镜顺序重排(); },
         关联FID: 'F-011'
       });
       // C-04 取消默认落④不会执行 handler，改登记①才能真关掉浮层且零变更

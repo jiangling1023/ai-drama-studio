@@ -15,8 +15,8 @@ export function defaultExportConfig() {
 export function buildAssembly(project) {
   const p = project || {};
   const 导出配置 = defaultExportConfig();
-  // 片段数 == 分镜成品条数，顺序恒等于镜号升序
-  const 成品 = (p.storyboardItems || []).slice().sort((a, b) => (a.镜号 || 0) - (b.镜号 || 0));
+  // 成品表已按「场次序号 → 镜号」排好，此处不再二次排序：各场次镜号都从 1 重数，按镜号排会把跨场次镜头打散
+  const 成品 = (p.storyboardItems || []).slice();
   const 片段清单 = 成品.map((s, i) => ({
     顺序号: i + 1,
     分镜ID: s.分镜ID,
