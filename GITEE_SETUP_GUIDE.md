@@ -45,7 +45,7 @@ git push origin HEAD:main
 
 ## 五、分支与权限
 
-- 主干分支：`main`，Pages 从该分支的 `source/ai-drama-studio/web-app` 目录部署。
+- 主干分支：`main`。线上站点（Cloudflare Pages）从该分支的 `source/ai-drama-studio/web-app` 目录发布，见 [DEPLOY.md](DEPLOY.md)。
 - 若仓库开启分支保护，推送账号需具备该分支的写权限（仓库成员 / 管理员）。
 - 多人协作请走 Pull Request，评议通过后再合入 `main`，避免直推覆盖。
 
@@ -66,5 +66,5 @@ git push origin HEAD:main
 | `Authentication failed` | 令牌无效或过期；重新生成并确认勾选 `projects` 权限 |
 | `remote: Permission denied` | 账号对该仓库无写权限，联系仓库管理员 |
 | `non-fast-forward` | 远端有新提交，先 `git pull --rebase origin main` 再推送，不要直接强推 |
-| 推送成功但线上没变 | Pages 需手动点「更新」，见 [DEPLOY.md](DEPLOY.md) 第四节 |
+| 推送成功但线上没变 | 线上由 Cloudflare Pages 托管。若已绑定 GitHub Git 集成则自动发布（1–2 分钟）；未绑定需手动上传。排查步骤见 [DEPLOY.md](DEPLOY.md) 第三节 |
 | 误提交了密钥 | 立即吊销该令牌并重新生成；用新提交移除文件，历史中的旧值视为已泄露 |
