@@ -1273,3 +1273,13 @@ pre.mono { padding: 10px 12px; border-radius: 10px; border: 1px solid var(--hair
   .director-tabs { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .page { padding: 16px; }
 }
+
+/* 下载面板：仅几何，颜色/圆角/阴影全部继承既有 .modal-card / .mono / .btn 与 :root token */
+.dl-panel { display: grid; gap: var(--gap-block); }
+.dl-sha { display: flex; gap: var(--gap); align-items: center; flex-wrap: wrap; }
+
+/* 平台分组与签名信息区：仅几何，颜色/圆角/字号全部继承既有 token 与 .kv / .chip / .alert-bar */
+.dl-group { display: grid; gap: var(--gap-block); margin-top: var(--gap-block); }
+.dl-group__head { display: flex; align-items: baseline; gap: var(--gap); flex-wrap: wrap; }
+.dl-sign { display: grid; gap: var(--gap-block); }
+.dl-sign__head { display: flex; align-items: center; gap: var(--gap); flex-wrap: wrap; }

@@ -68,6 +68,7 @@ export function renderTopBar(container, ctx) {
       <button class="btn btn-ghost" type="button" data-btn-id="${ID(9)}">载入示例工程</button>
       <button class="btn btn-ghost" type="button" data-btn-id="${ID(10)}" aria-pressed="${noMotion}">关闭动效：${noMotion ? '开' : '关'}</button>
       <button class="btn btn-ghost" type="button" data-btn-id="${ID(11)}">来源/调用链</button>
+      <button class="btn btn-ghost" type="button" data-btn-id="BTN-DL-OPEN">下载桌面版</button>
     </div>
     <input type="file" id="top-import-file" accept=".json,application/json" hidden>
     <div class="glass tb-chain" id="top-chain" hidden></div>
@@ -193,6 +194,17 @@ export function renderTopBar(container, ctx) {
       if (!panel.hidden) { panel.hidden = true; return; }
       panel.innerHTML = chainHtml(ctx.getProject());
       panel.hidden = false;
+    }
+  });
+
+  // 面板从 handler 里动态加载：不触碰 components/index.js / app.js 的冻结清单，也不新增点击监听
+  ctx.registerButton('BTN-DL-OPEN', {
+    类别: '①', 关联FID: 'F6',
+    handler: () => {
+      ctx.showToast('正在读取下载信息…', { level: 'info' });
+      import('../components/c20-download-panel.js')
+        .then(m => m.openDownloadPanel(ctx))
+        .catch(() => ctx.showToast('下载信息模块未就绪，请重试', { level: 'warn' }));
     }
   });
 }

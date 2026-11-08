@@ -1,0 +1,91 @@
+{
+  "schemaVersion": "2.0",
+  "productName": "AI 短剧工作台",
+  "version": "1.2.7",
+  "releaseDate": "2026-11-08",
+  "systemRequirements": "Windows 10 1809 及以上 / Windows 11，64 位",
+  "minDiskSpaceMB": 1024,
+  "signingNotice": "已使用自签名证书签名，仅用于内测 / 内部分发。Windows 可能提示『未知发布者』或由 SmartScreen 拦截，属自签名证书预期行为，并不代表文件存在问题；请先按 SHA256 校验值核对文件。正式对外发布需更换 OV 代码签名证书后重新签名。",
+  "checksumGuide": "在文件所在目录执行 certutil -hashfile <文件名> SHA256（Windows）或 sha256sum -c AI-Drama-Studio-1.2.7-SHA256SUMS.txt（deepin / UOS），与下方 64 位值逐字比对；不一致即文件不完整，请勿运行",
+  "installNotes": [
+    "双击 NSIS 安装包，可选择安装目录，完成后启动软件",
+    "或双击便携版 .exe 直接运行，免安装",
+    "无需预装 Node.js、npm 或其他运行时",
+    "请确保目标磁盘有足够可用空间，安装路径尽量避免中文与空格",
+    "首次运行如出现系统安全提示，请先按 SHA256 校验值核对文件",
+    "deepin / 统信 UOS（x86_64）：双击 .deb 安装，或给 .AppImage 赋予可执行权限后运行（免 root）",
+    "无 FUSE 环境请改用 APPIMAGE_EXTRACT_AND_RUN=1 运行，或 --appimage-extract 后执行 squashfs-root/AppRun"
+  ],
+  "contact": "",
+  "sizeLimitMB": 100,
+  "linkTimeoutMs": 10000,
+  "linkSource": "repo",
+  "checksumFile": "AI-Drama-Studio-1.2.7-SHA256SUMS.txt",
+  "signature": {
+    "signer": "CN=AI Drama Studio (Self-Signed Code Signing),O=AI Drama Studio Internal,C=CN",
+    "certType": "self-signed",
+    "signedAt": "2026-11-08T11:18:07Z",
+    "timestampServer": "http://timestamp.digicert.com",
+    "fingerprintSha256": "ed8f2289fa9f433e72423ac3b928a1cc03ab58c6ab47c2d9d3e6966297c55c70",
+    "verifyStatus": "通过",
+    "notice": "已使用自签名证书签名，仅用于内测 / 内部分发。Windows 可能提示『未知发布者』或由 SmartScreen 拦截，属自签名证书预期行为，并不代表文件存在问题；请先按 SHA256 校验值核对文件。正式对外发布需更换 OV 代码签名证书后重新签名。"
+  },
+  "artifacts": [
+    {
+      "id": "nsis",
+      "platform": "windows",
+      "arch": "x64",
+      "group": "Windows",
+      "label": "签名版安装包（可选安装目录）",
+      "description": "Windows 签名版安装包（.exe），双击安装，可自选安装目录；适用于 Windows 10 1809 及以上 / Windows 11，64 位。",
+      "downloadText": "下载安装包",
+      "fileName": "AI-Drama-Studio-1.2.7-Setup-x64.exe",
+      "url": "downloads/AI-Drama-Studio-1.2.7-Setup-x64.exe",
+      "backupUrl": "",
+      "sizeBytes": 113571912,
+      "sha256": "7e952c3a812d0c0b5875157814005d73a1c2ed086c1bc95196f09bafb33abe80"
+    },
+    {
+      "id": "portable",
+      "platform": "windows",
+      "arch": "x64",
+      "group": "Windows",
+      "label": "签名版便携版（免安装）",
+      "description": "Windows 签名版便携版（.exe），免安装，双击即可运行；适用于 Windows 10 1809 及以上 / Windows 11，64 位。",
+      "downloadText": "下载便携版",
+      "fileName": "AI-Drama-Studio-1.2.7-Portable-x64.exe",
+      "url": "downloads/AI-Drama-Studio-1.2.7-Portable-x64.exe",
+      "backupUrl": "",
+      "sizeBytes": 113343680,
+      "sha256": "30628aa2863edd400622e5f8e51c3af21187fb00e4d687716261de4b9a33f42c"
+    },
+    {
+      "id": "deb",
+      "platform": "linux",
+      "arch": "x86_64",
+      "group": "deepin · 统信 UOS",
+      "label": "deb 安装包（双击安装）",
+      "description": "deepin / 统信 UOS（x86_64）安装包（.deb），双击安装；仅适用于 Debian 系 x86_64 桌面，需图形桌面环境。",
+      "downloadText": "下载 .deb",
+      "fileName": "AI-Drama-Studio-1.2.7-linux-x86_64.deb",
+      "url": "downloads/AI-Drama-Studio-1.2.7-linux-x86_64.deb",
+      "backupUrl": "",
+      "sizeBytes": 165013858,
+      "sha256": "763545951888c180a66f659c886b079954f6a015a661409c809ab6ad903b796c"
+    },
+    {
+      "id": "appimage",
+      "platform": "linux",
+      "arch": "x86_64",
+      "group": "deepin · 统信 UOS",
+      "label": "AppImage（免安装）",
+      "description": "deepin / 统信 UOS（x86_64）免安装包（.AppImage），无需 root，赋予可执行权限后运行；无 FUSE 时可解包后运行 AppRun。",
+      "downloadText": "下载 .AppImage",
+      "fileName": "AI-Drama-Studio-1.2.7-linux-x86_64.AppImage",
+      "url": "downloads/AI-Drama-Studio-1.2.7-linux-x86_64.AppImage",
+      "backupUrl": "",
+      "sizeBytes": 250215695,
+      "sha256": "92572dc0ba8b363f83612d4e2ddd548fc2ca1834e89f64c65c194338e2bc2e8c"
+    }
+  ]
+}
