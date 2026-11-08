@@ -4,9 +4,11 @@
 
 ## 一、在线访问
 
-**https://jiang-ling1023.gitee.io/ai-drama-studio/**
+**https://ai-drama-studio-8t2.pages.dev/**
 
-Gitee Pages 部署，push 后需在仓库「服务 → Gitee Pages」手动点「更新」才会重建（免费版不自动重建）。部署细节见 [DEPLOY.md](DEPLOY.md)。
+Cloudflare Pages 部署，纯静态托管，零构建，push 后自动发布。部署细节见 [DEPLOY.md](DEPLOY.md)。
+
+> 历史方案 Gitee Pages（`jiang-ling1023.gitee.io/ai-drama-studio/`）已停止服务，实测返回 404，请使用上方地址。
 
 ## 二、零密钥体验
 
